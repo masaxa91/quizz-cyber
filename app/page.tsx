@@ -17,15 +17,16 @@ export default function Home() {
           id,
           texte,
           image,
-          reponses:reponse (
+          reponse:reponse (
             id,
             texte,
             reponse_correct
           )
-        `);
+        `)
+        .order('id', { ascending: true });
 
       if (error) console.error(error);
-      else {        
+      else {
         setQuestion(data[0]); // On stocke la première question dans l’état
         console.log(data[0]);
       }
@@ -58,6 +59,18 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <p>{question.texte}</p>
+
+            {question.reponse?.map((reponse: any) => (
+              <Button
+                key={reponse.id}
+                className="w-full justify-start mt-4"
+                variant="outline"
+                onClick={() => handleClick(reponse)}
+              >
+                {reponse.texte}
+              </Button>
+            ))}
+
           </CardContent>
         </Card>
       ) : (
@@ -65,16 +78,6 @@ export default function Home() {
       )
     }
 
-    {question.reponses.map((reponse: any) => (
-      <Button
-        key={reponse.id}
-        onClick={() => handleClick(reponse)}
-        className="w-full justify-start mt-4"
-        variant="outline"
-      >
-        {reponse.texte}
-      </Button>
-    ))}
 
 
   </div>
