@@ -29,12 +29,13 @@ export default function Home() {
 
       if (error) console.error(error);
       else {
-        setQuestion(data[0]); // On stocke la première question dans l’état
+        setQuestion(data[0]);
         console.log(data[0]);
       }
     }
     fetchQuestion();
   }, []);
+
   function handleClick(reponse: any) {
     if (reponse.est_correcte) {
       alert("Bonne réponse !");
@@ -53,20 +54,21 @@ export default function Home() {
         </AlertDescription>
       </Alert>
 
+      {/* --- CARD PRINCIPALE QUI CONTIENT LES DEUX COLONNES --- */}
+      <Card className="max-w-5xl mx-auto mt-8 p-6">
 
-      <div className='flex'>
-        <div className="w-1/2">
+        <div className="flex gap-6">
 
-
-          <Card className="max-w-xl mx-auto mt-6">
-
+          {/* COLONNE GAUCHE : IMAGE */}
+          <div className="w-1/2">
             <Image
               src="/image/Photo-Malware.png"
               alt="Illustration"
-              width={400}
-              height={300}
-              className="rounded"
+              width={500}
+              height={400}
+              className="rounded w-full"
             />
+
             <Alert className="mt-4 text-sm text-muted-foreground">
               <AlertDescription>
                 <Link
@@ -79,39 +81,33 @@ export default function Home() {
                 </Link>
               </AlertDescription>
             </Alert>
-          </Card>
+          </div>
+
+          {/* COLONNE DROITE : QUESTION */}
+          <div className="w-1/2">
+            <CardHeader>
+              <CardTitle>Question</CardTitle>
+            </CardHeader>
+
+            <CardContent>
+              <p className="font-medium mb-4">{question?.texte}</p>
+
+              {question?.reponse?.map((reponse: any) => (
+                <Button
+                  key={reponse.id}
+                  className="w-full justify-start mb-3"
+                  variant="outline"
+                  onClick={() => handleClick(reponse)}
+                >
+                  {reponse.texte}
+                </Button>
+              ))}
+            </CardContent>
+          </div>
+
         </div>
 
-        <div className="w-1/2">
-          {question ? (
-            <Card className="max-w-xl mx-auto mt-6">
-              <CardHeader>
-                <CardTitle>Question</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>{question.texte}</p>
-
-                {question.reponse?.map((reponse: any) => (
-                  <Button
-                    key={reponse.id}
-                    className="w-full justify-start mt-4"
-                    variant="outline"
-                    onClick={() => handleClick(reponse)}
-                  >
-                    {reponse.texte}
-                  </Button>
-                ))}
-
-              </CardContent>
-            </Card>
-          ) : (
-            <p>Chargement de la question...</p>
-          )
-          }
-        </div>
-
-      </div>
-
+      </Card>
 
     </div>
   )
