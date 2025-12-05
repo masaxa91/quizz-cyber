@@ -143,6 +143,7 @@ export default function Home() {
               Préparez-vous à tester vos connaissances en cybersécurité.
             </AlertDescription>
           </Alert>
+          <Score actuel={score} total={questions.length} />
           <Card className="max-w-5xl mx-auto mt-8 p-6">
             <div className="flex gap-6">
               {joueurNom && (
@@ -156,7 +157,6 @@ export default function Home() {
                     </AlertDescription>
                   </Alert>
 
-                  <Score actuel={score} total={questions.length} />
                 </>
               )}
 
