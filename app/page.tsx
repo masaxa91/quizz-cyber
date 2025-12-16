@@ -24,25 +24,8 @@ export default function Home() {
   const [reponseCliquee, setReponseCliquee] = useState<number | null>(null);
 
   useEffect(() => {
-    if (joueurPret) {
-      const userId = localStorage.getItem("supabase_user_id");
-      if (userId) {
-        supabase
-          .from("joueur")
-          .select("pseudo")
-          .eq("user_id", userId)
-          .single()
-          .then(({ data, error }) => {
-            if (error) console.error("Erreur récupération joueur :", error);
-            else if (data) setJoueurNom(data.pseudo);
-          });
-      }
-    }
-  }, [joueurPret]);
-
-  useEffect(() => {
     async function fetchQuestion() {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('question')
         .select(`
           id,
@@ -57,107 +40,80 @@ export default function Home() {
             reponse_correct
           )
         `)
-        .order('id', { ascending: true });
+        .order('id');
 
-      if (error) console.error(error);
-      else {
-        setQuestions(data || []);
-        setDebut(Date.now());
-      }
+      setQuestions(data || []);
+      setDebut(Date.now());
     }
     fetchQuestion();
   }, []);
 
   const question = questions[questionIndex];
 
+  // 🔥 BARRE DE PROGRESSION
+  const progression = questions.length
+    ? Math.round(((questionIndex + 1) / questions.length) * 100)
+    : 0;
+
   function handleClick(reponse: any) {
     if (!question || afficherExplication) return;
 
     setReponseCliquee(reponse.id);
 
-    const estBonneReponse = reponse.reponse_correct;
-    if (estBonneReponse) setScore(prev => prev + 1);
+    if (reponse.reponse_correct) {
+      setScore(prev => prev + 1);
+    }
 
-    const message = estBonneReponse ? "✅ Bonne réponse !" : "❌ Mauvaise réponse.";
-    const explicationTexte = message + " " + (question.explication || "");
-    setExplication(explicationTexte);
+    const message = reponse.reponse_correct
+      ? "✅ Bonne réponse !"
+      : "❌ Mauvaise réponse.";
+
+    setExplication(message + " " + (question.explication || ""));
     setAfficherExplication(true);
-
-    setTimeout(() => {
-      setAfficherExplication(false);
-      setExplication("");
-      setQuestionIndex(prev => prev + 1);
-      setReponseCliquee(null);
-    }, 2000);
   }
 
-  async function enregistrerMeilleurScore() {
-    const userId = localStorage.getItem("supabase_user_id");
-    if (!userId || debut === null || questions.length === 0) return;
-
-    const tempsTotal = Math.floor((Date.now() - debut) / 1000);
-    const scoreFinal = score;
-    const aujourdHui = new Date().toISOString().split("T")[0];
-
-    const { data: joueur, error } = await supabase
-      .from("joueur")
-      .select("meilleur_score")
-      .eq("user_id", userId)
-      .single();
-
-    if (error || !joueur) {
-      console.error("Erreur récupération joueur :", error);
-      return;
-    }
-
-    const ancienMeilleur = joueur.meilleur_score || 0;
-
-    if (scoreFinal > ancienMeilleur) {
-      const { error: updateError } = await supabase
-        .from("joueur")
-        .update({
-          meilleur_score: scoreFinal,
-          meilleur_temps: tempsTotal,
-          date_meilleur_score: aujourdHui,
-        })
-        .eq("user_id", userId);
-
-      if (updateError) console.error("Erreur mise à jour record :", updateError);
-      else console.log("Nouveau record !", scoreFinal, "points en", tempsTotal, "s");
-    }
+  // 👉 BOUTON QUESTION SUIVANTE
+  function questionSuivante() {
+    setAfficherExplication(false);
+    setExplication("");
+    setReponseCliquee(null);
+    setQuestionIndex(prev => prev + 1);
   }
 
   useEffect(() => {
-    if (joueurPret && questionIndex >= questions.length && questions.length > 0 && !quizTermine) {
+    if (questionIndex >= questions.length && questions.length > 0) {
       setQuizTermine(true);
-      enregistrerMeilleurScore();
     }
-  }, [questionIndex, questions.length, joueurPret, quizTermine]);
+  }, [questionIndex, questions.length]);
 
   return (
     <div>
-      {/* ---------------------- BIENVENUE / FORMULAIRE ---------------------- */}
+
       {!joueurPret ? (
         <FormulaireJoueur onJoueurCree={() => setJoueurPret(true)} />
-      ) : questionIndex === 0 && !quizTermine ? (
-        <Card className="max-w-xl mx-auto mt-6 p-6 bg-primary text-primary-foreground rounded-lg shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Bienvenue {joueurNom} !</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Préparez-vous à tester vos connaissances en cybersécurité.</p>
-          </CardContent>
-        </Card>
       ) : null}
 
-      {/* ---------------------- QUIZ ---------------------- */}
-      {joueurPret && question && !quizTermine && (
+      {question && !quizTermine && (
         <div>
           <Score actuel={score} total={questions.length} />
 
+          {/* 🟦 BARRE DE PROGRESSION */}
+          <div className="max-w-5xl mx-auto mt-4">
+            <div className="flex justify-between text-sm mb-1">
+              <span>Question {questionIndex + 1} / {questions.length}</span>
+              <span>{progression}%</span>
+            </div>
+            <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${progression}%` }}
+              />
+            </div>
+          </div>
+
           <Card className="max-w-5xl mx-auto mt-8 p-6">
             <div className="flex gap-6">
-              {/* IMAGE */}
+
               <div className="w-1/2">
                 <Image
                   src={question.image || "/image/Photo-Malware.png"}
@@ -166,33 +122,25 @@ export default function Home() {
                   height={400}
                   className="rounded w-full"
                 />
-                {question.image_credit_url && (
-                  <Alert className="mt-4 text-sm text-muted-foreground">
-                    <AlertDescription>
-                      <Link
-                        href={question.image_credit_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-muted-foreground underline underline-offset-2 hover:text-primary inline-block"
-                      >
-                        {question.image_credit_nom || "Crédit inconnu"}
-                      </Link>
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
 
-              {/* QUESTION */}
               <div className="w-1/2">
                 <CardHeader>
                   <CardTitle>Question</CardTitle>
                 </CardHeader>
+
                 <CardContent>
-                  <p className="font-medium mb-4">{question.texte}</p>
+                  <p className="mb-4 font-medium">{question.texte}</p>
+
                   {question.reponse?.map((reponse: any) => {
                     let bgColor = "bg-background";
-                    if (reponseCliquee === reponse.id) {
-                      bgColor = reponse.reponse_correct ? "bg-green-500 text-white" : "bg-red-300 text-white";
+
+                    if (afficherExplication) {
+                      if (reponse.reponse_correct) {
+                        bgColor = "bg-green-500 text-white";
+                      } else if (reponseCliquee === reponse.id) {
+                        bgColor = "bg-red-400 text-white";
+                      }
                     }
 
                     return (
@@ -207,13 +155,24 @@ export default function Home() {
                       </Button>
                     );
                   })}
+
+                  {afficherExplication && (
+                    <>
+                      <Alert className="mt-6">
+                        <AlertTitle>Explication</AlertTitle>
+                        <AlertDescription>{explication}</AlertDescription>
+                      </Alert>
+
+                      {/* 🔘 BOUTON QUESTION SUIVANTE */}
+                      <Button
+                        onClick={questionSuivante}
+                        className="mt-6 w-full"
+                      >
+                        Question suivante →
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
-                {afficherExplication && (
-                  <Alert className="mt-6 bg-yellow-50 border-yellow-300 text-yellow-800">
-                    <AlertTitle>Explication</AlertTitle>
-                    <AlertDescription>{explication}</AlertDescription>
-                  </Alert>
-                )}
               </div>
 
             </div>
@@ -221,25 +180,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* ---------------------- FIN DU QUIZ ---------------------- */}
       {quizTermine && (
-        <div className="text-center mt-20 max-w-2xl mx-auto">
-          <h2 className="text-4xl font-bold mb-8 text-primary">Quiz terminé !</h2>
-          <Card>
-            <CardHeader>
-              <CardTitle>Votre résultat</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xl">
-              <p>Score : <span className="font-bold text-green-600">{score}</span> / {questions.length}</p>
-              <p className="text-muted-foreground">
-                Temps : {debut ? Math.floor((Date.now() - debut) / 1000) : 0} secondes
-              </p>
-              {score === questions.length && <p className="text-2xl">Parfait ! 100% de bonnes réponses !</p>}
-            </CardContent>
-          </Card>
-          <div className="mt-8">
-            <p className="text-lg mb-4">Merci {joueurNom} pour votre participation !</p>
-          </div>
+        <div className="mt-20 text-center">
           <Classement />
         </div>
       )}
